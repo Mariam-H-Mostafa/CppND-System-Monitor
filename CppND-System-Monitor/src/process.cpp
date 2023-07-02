@@ -22,28 +22,28 @@ int Process::Pid() const {
 
 // TODO: Return this process's CPU utilization
 float Process::CpuUtilization() const { 
-    return float(LinuxParser::ActiveJiffies(Pid())/LinuxParser::UpTime(Pid()));
+    return float(LinuxParser::ActiveJiffies(pid_))/float(LinuxParser::UpTime(pid_));
 }
 
 // TODO: Return the command that generated this process
 string Process::Command() { 
-    return LinuxParser::Command(Pid());
+    return LinuxParser::Command(pid_);
 }
 
 // TODO: Return this process's memory utilization
 string Process::Ram() { 
-    return LinuxParser::Ram(Pid());
+    return LinuxParser::Ram(pid_);
 }
 
 // TODO: Return the user (name) that generated this process
 string Process::User() { 
-    return LinuxParser::User(Pid());
+    return LinuxParser::User(pid_);
 }
 
 
 // TODO: Return the age of this process (in seconds)
 long int Process::UpTime() { 
-   return LinuxParser::UpTime(Pid());
+   return LinuxParser::UpTime(pid_);
 }
 
 // TODO: Overload the "less than" comparison operator for Process objects
