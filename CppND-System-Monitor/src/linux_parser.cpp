@@ -72,9 +72,8 @@ float LinuxParser::MemoryUtilization() {
   string line, key;
   int value;
   
-  int MemTotal ,MemFree, Buffers, Cached, SReclaimable ,Shmem,SwapTotal, SwapFree;
-  float MemGreen, MemBlue, MemYellow, Swap;
-  
+  float MemTotal ,MemFree, Buffers;
+    
   std::ifstream filestream (kProcDirectory+kMeminfoFilename);
     if (filestream.is_open())
     {
@@ -82,22 +81,13 @@ float LinuxParser::MemoryUtilization() {
       std::replace(line.begin(),line.end(),':',' ');
       std::istringstream linestream (line);
       while (linestream >> key>>value){
-        if (key == " MemTotal"){MemTotal = value;}
+        if (key == "MemTotal"){MemTotal = value;}
         else if (key == "MemFree"){MemFree = value;}
         else if (key =="Buffers"){Buffers = value;}
-        else if (key == "Cached"){Cached = value;}
-        else if (key == "SReclaimable"){SReclaimable = value;}
-        else if (key =="Shmem"){Shmem = value;}
-        else if (key == "SwapTotal"){SwapTotal = value;}
-        else if (key == "SwapFree"){SwapFree = value;}
       }
     }
-    MemGreen = (MemTotal-MemFree) - (Buffers+Cached);
-    MemBlue = Buffers;
-    MemYellow = Cached + SReclaimable - Shmem;
-    Swap = SwapTotal - SwapFree;
   } 
-  return MemGreen;
+  return (1.0 - (MemFree/(MemTotal-Buffers)));
  }
 
 // TODO: Read and return the system uptime
@@ -112,7 +102,7 @@ long LinuxParser::UpTime() {
 
 // TODO: Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { 
-  return (ActiveJiffies()+IdleJiffies());
+  return LinuxParser::ActiveJiffies()+LinuxParser::IdleJiffies();
 }
 
 // TODO: Read and return the number of active jiffies for a PID
@@ -120,38 +110,36 @@ long LinuxParser::Jiffies() {
 long LinuxParser::ActiveJiffies(int pid) { 
 //Refer to this link: https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
 
-long systime = UpTime();
-long cpu_usage;
+//long systime = UpTime();
 string value;
 string line;
 vector<string> valueGroup;
-long seconds;
-long HZ;
-float utime,stime ,cutime ,cstime ,starttime;
+//long seconds;
+long numerator;
+float utime,stime ,cutime ,cstime;
 std::ifstream filestream (kProcDirectory+to_string(pid)+kStatFilename);
 
 if (filestream.is_open())
 {
   std::getline(filestream,line);
   std::istringstream linestream (line);
-  for (int j = 0; j<23; j++){
+  for (int j = 0; j<22; j++){
     linestream>>value;
-    if (j == 14 || j ==15|| j==16 || j ==17 || j == 22)
+    if (j == 13 || j ==14|| j==15 || j ==16 || j == 21)
     {
       valueGroup.push_back(value);
     }
   }
 }
-  utime = stof(valueGroup[0]);
-  stime = stof(valueGroup[1]);
-  cutime = stof(valueGroup[2]);
-  cstime = stof(valueGroup[3]);
-  starttime = stof(valueGroup[4]);
+  utime = stol(valueGroup[0]);
+  stime = stol(valueGroup[1]);
+  cutime = stol(valueGroup[2]);
+  cstime = stol(valueGroup[3]);
+  //starttime = stol(valueGroup[4]);
     
-  HZ = sysconf(_SC_CLK_TCK);
-  seconds = systime - (starttime/HZ);
-  cpu_usage = 100*(((utime+stime+cutime+cstime)/HZ)/seconds);
-  return cpu_usage;
+  // seconds = systime - (starttime/HZ);
+  numerator = (utime+stime+cutime+cstime);
+  return numerator/sysconf(_SC_CLK_TCK);
 }
 // TODO: Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() { 
@@ -166,14 +154,15 @@ long LinuxParser::ActiveJiffies() {
 auto jiffies = CpuUtilization();
 return stol(jiffies[CPUStates::kUser_])+stol(jiffies[CPUStates::kNice_])+stol(jiffies[CPUStates::kSystem_])+
         stol(jiffies[CPUStates::kIRQ_])+stol(jiffies[CPUStates::kSoftIRQ_])+
-        stol(jiffies[CPUStates::kSteal_])+stol(jiffies[CPUStates::kGuest_])+
+        stol(jiffies[CPUStates::kSteal_])+
+        stol(jiffies[CPUStates::kGuest_])+
         stol (jiffies[CPUStates::kGuestNice_]);
 }
 
 // TODO: Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() {   
   auto jiffies = CpuUtilization();
-  stol(jiffies[CPUStates::kIdle_])+stol(jiffies[CPUStates::kIOwait_]);
+  return (stol(jiffies[CPUStates::kIdle_])+stol(jiffies[CPUStates::kIOwait_]));
 }
 
 // TODO: Read and return CPU utilization
@@ -206,7 +195,7 @@ int LinuxParser::TotalProcesses() {
         linestream >> key>> value;
         if (key == "processes"){
           return stoi(value);
-          break;
+          //break;
         }
       }
   }
@@ -223,7 +212,7 @@ int LinuxParser::RunningProcesses() {
         linestream >> key>> value;
         if (key == "procs_running"){
           return stoi(value);
-          break;
+          //break;
         }
       }
   }
@@ -251,7 +240,7 @@ return command;
 string LinuxParser::Ram(int pid) { 
 
   string key, value, unit, line;
-  std::ifstream filestream (kProcDirectory+to_string(pid)+kStatFilename);
+  std::ifstream filestream (kProcDirectory+to_string(pid)+kStatusFilename);
   if (filestream.is_open())
   {
       while (std::getline(filestream,line)){
@@ -259,12 +248,11 @@ string LinuxParser::Ram(int pid) {
         std::istringstream linestream (line);
         linestream >> key >> value >> unit;
         if (key == "VmSize"){
-          return (value+" "+unit);
+          return value;
         }
       }
   }
-}
-  
+}  
 
 // TODO: Read and return the user ID associated with a process
 // REMOVE: [[maybe_unused]] once you define the function
@@ -283,7 +271,7 @@ string LinuxParser::Uid(int pid) {
           return value;
         }
       }
-  }  
+  } 
 }
 
 // TODO: Read and return the user associated with a process
