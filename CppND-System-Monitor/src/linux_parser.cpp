@@ -175,7 +175,7 @@ vector<string> LinuxParser::CpuUtilization() {
       while (std::getline(filestream,line)){
         std::istringstream linestream (line);
         linestream >> cpu;
-        while(linestream >> key>> value){
+        while(linestream >> value){
           jiffies.push_back(value);
         }
         }
